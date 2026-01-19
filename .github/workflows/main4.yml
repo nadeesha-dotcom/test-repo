@@ -1,0 +1,42 @@
+name: MSDO Sample Workflow
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  id-token: write
+  security-events: write
+  contents: read
+
+jobs:
+  sample:
+    name: MSDO on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4 # Upgraded to v4
+
+      - name: Run Microsoft Security DevOps Analysis
+        uses: microsoft/security-devops-action@v1
+        id: msdo
+
+      - name: Upload alerts to Security tab
+        uses: github/codeql-action/upload-sarif@v3 # Fixes Deprecation Error
+        if: always()
+        with:
+          sarif_file: ${{ steps.msdo.outputs.sarifFile }}
+
+      - name: Upload alerts file as a workflow artifact
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:  
+          # Using the matrix OS in the name fixes the (409) Conflict Error
+          name: alerts-${{ matrix.os }} 
+          path: ${{ steps.msdo.outputs.sarifFile }}
